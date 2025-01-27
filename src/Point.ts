@@ -23,7 +23,7 @@ export default class Point {
     private state = InteractState.default;
     private events: { [key: string]: Function[] } = {};
     private draging = false;
-    constructor(public x: number, public y: number, public r: number = 5, private config: StyleConfig = defaultConfig) { }
+    constructor(public x: number, public y: number, public r: number = 5 ,public color:string = '#cccccc', private config: StyleConfig = defaultConfig) { }
 
 
     draw(ctx: CanvasRenderingContext2D) {

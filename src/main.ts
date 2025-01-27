@@ -1,5 +1,5 @@
-import GradMEsh from './MeshGrad';
+import GradMesh from './MeshGrad';
 import './style.css'
 
-const grad = new GradMEsh('GradMesh');
+const grad = new GradMesh('GradMesh');
 
