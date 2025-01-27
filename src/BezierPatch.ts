@@ -109,29 +109,28 @@ export default class BezierPatch {
                 const u = j / 3;
                 const v = i / 3;
 
-                // Linear interpolation along boundaries
+                // Calculate weights based on distance from edges
+                const wLeft = (3 - j) / 3;
+                const wRight = j / 3;
+                const wTop = (3 - i) / 3;
+                const wBottom = i / 3;
+
+                // Get the four nearest edge points
                 const leftPoint = this.controlPoints[i][0];
                 const rightPoint = this.controlPoints[i][3];
-                const horizontal = this.linearInterpolate(leftPoint, rightPoint, u);
-
                 const topPoint = this.controlPoints[0][j];
                 const bottomPoint = this.controlPoints[3][j];
-                const vertical = this.linearInterpolate(topPoint, bottomPoint, v);
 
-                // Bilinear interpolation of corners
-                const corners = this.bilinearInterpolate(
-                    this.controlPoints[0][0],
-                    this.controlPoints[0][3],
-                    this.controlPoints[3][3],
-                    this.controlPoints[3][0],
-                    u, v
-                );
+                // Calculate weighted position
+                const x = (leftPoint.x * wLeft + rightPoint.x * wRight + 
+                          topPoint.x * wTop + bottomPoint.x * wBottom) / 
+                         (wLeft + wRight + wTop + wBottom);
+                
+                const y = (leftPoint.y * wLeft + rightPoint.y * wRight + 
+                          topPoint.y * wTop + bottomPoint.y * wBottom) / 
+                         (wLeft + wRight + wTop + wBottom);
 
-                // Coons patch formula
-                this.controlPoints[i][j] = new Point(
-                    horizontal.x + vertical.x - corners.x,
-                    horizontal.y + vertical.y - corners.y
-                );
+                this.controlPoints[i][j] = new Point(x, y);
             }
         }
     }
@@ -160,57 +159,22 @@ export default class BezierPatch {
         u = Math.max(0, Math.min(1, u));
         v = Math.max(0, Math.min(1, v));
 
-        // Get Bernstein coefficients for cubic Bézier curves
         const bu = this.getBernsteinCoefficients(u);
         const bv = this.getBernsteinCoefficients(v);
 
-        // Evaluate the boundary curves using cubic Bézier
-        const topCurve = new Point(0, 0);
-        const bottomCurve = new Point(0, 0);
-        const leftCurve = new Point(0, 0);
-        const rightCurve = new Point(0, 0);
+        let x = 0;
+        let y = 0;
 
-        // Calculate top and bottom curves
-        for (let j = 0; j < 4; j++) {
-            // Top boundary curve
-            topCurve.x += this.controlPoints[0][j].x * bu[j];
-            topCurve.y += this.controlPoints[0][j].y * bu[j];
-
-            // Bottom boundary curve
-            bottomCurve.x += this.controlPoints[3][j].x * bu[j];
-            bottomCurve.y += this.controlPoints[3][j].y * bu[j];
-        }
-
-        // Calculate left and right curves
+        // Evaluate the bicubic Bézier surface
         for (let i = 0; i < 4; i++) {
-            // Left boundary curve
-            leftCurve.x += this.controlPoints[i][0].x * bv[i];
-            leftCurve.y += this.controlPoints[i][0].y * bv[i];
-
-            // Right boundary curve
-            rightCurve.x += this.controlPoints[i][3].x * bv[i];
-            rightCurve.y += this.controlPoints[i][3].y * bv[i];
+            for (let j = 0; j < 4; j++) {
+                const weight = bu[j] * bv[i];
+                x += this.controlPoints[i][j].x * weight;
+                y += this.controlPoints[i][j].y * weight;
+            }
         }
 
-        // Bilinear interpolation of corners for the twist correction
-        const bilinear = this.bilinearInterpolate(
-            this.controlPoints[0][0],
-            this.controlPoints[0][3],
-            this.controlPoints[3][3],
-            this.controlPoints[3][0],
-            u, v
-        );
-
-        // Coons patch formula with cubic Bézier boundaries
-        return new Point(
-            topCurve.x * (1 - v) + bottomCurve.x * v +
-            leftCurve.x * (1 - u) + rightCurve.x * u -
-            bilinear.x,
-
-            topCurve.y * (1 - v) + bottomCurve.y * v +
-            leftCurve.y * (1 - u) + rightCurve.y * u -
-            bilinear.y
-        );
+        return new Point(x, y);
     }
 
     private getBernsteinCoefficients(t: number): number[] {
@@ -254,8 +218,27 @@ export default class BezierPatch {
             return;
         }
 
+        // Calculate the movement delta
+        const deltaX = x - this.controlPoints[row][col].x;
+        const deltaY = y - this.controlPoints[row][col].y;
+
+        // Move the selected point
         this.controlPoints[row][col].x = x;
         this.controlPoints[row][col].y = y;
+
+        // If it's a corner point, move adjacent control points
+        if ((row === 0 || row === 3) && (col === 0 || col === 3)) {
+            // For horizontal adjacent point
+            const adjacentCol = col === 0 ? 1 : 2;
+            this.controlPoints[row][adjacentCol].x += deltaX ;
+            this.controlPoints[row][adjacentCol].y += deltaY ;
+
+            // For vertical adjacent point
+            const adjacentRow = row === 0 ? 1 : 2;
+            this.controlPoints[adjacentRow][col].x += deltaX;
+            this.controlPoints[adjacentRow][col].y += deltaY;
+        }
+
         this.calculateInteriorPoints();
     }
 
