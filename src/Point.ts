@@ -19,11 +19,17 @@ const defaultConfig: StyleConfig = {
 }
 
 
+export type Color = {
+    r: number,
+    g: number,
+    b: number,
+    a: number
+};
 export default class Point {
     private state = InteractState.default;
     private events: { [key: string]: Function[] } = {};
     private draging = false;
-    constructor(public x: number, public y: number, public r: number = 5 ,public color:string = '#cccccc', private config: StyleConfig = defaultConfig) { }
+    constructor(public x: number, public y: number, public r: number = 5 ,public color:Color = {r: 64, g: 231, b: 163,a: 1}, private config: StyleConfig = defaultConfig) { }
 
 
     draw(ctx: CanvasRenderingContext2D) {

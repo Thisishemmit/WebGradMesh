@@ -23,12 +23,15 @@ export default class GradMEsh {
 
         this.setSize();
 
-        window.addEventListener("resize", () => this.setSize());
-        this.Rects.push(new CurvableRect(300, 200, 100, 100));
-        this.setupEvents();
-        this.draw();
+        // window.addEventListener("resize", () => this.setSize());
+        // this.Rects.push(new CurvableRect(300, 200, 100, 100));
+        // this.setupEvents();
+        // this.draw();
     }
 
+    public getContext() {
+        return this.ctx;
+    }
     private setupEvents() {
         addEventListener("mousemove", (e) => {
             this.Rects.forEach((rect) => {
