@@ -1,4 +1,3 @@
-
 export interface StyleConfig {
     default: {
         fill: string;

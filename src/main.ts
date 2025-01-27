@@ -1,38 +1,43 @@
-import BezierPatch from './BezierPatch';
 import GradMesh from './MeshGrad';
+import PatchManager from './PatchManager';
 import './style.css'
 
 const grad = new GradMesh('GradMesh');
-
 const ctx = grad.getContext();
 const canvas = ctx.canvas;
-// Create and render a patch in the center of the canvas (x, y, width, height)
-const patch = new BezierPatch(canvas.width / 2 - 100, canvas.height / 2 - 100, 200, 200);
 
-// Modify some control points
-patch.moveControlPoint(1, 1, 150, 150);
+const patchManager = new PatchManager();
+
+// Create a 2x2 grid of patches in the center of the canvas
+const { patches } = patchManager.createPatchGrid(
+    canvas.width / 3 - 100,
+    canvas.height / 3 - 100,
+    200,
+    200
+);
+
 canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    patch.handleMouseMove(x, y);
-    render(ctx); // Re-render the canvas
+    patchManager.handleMouseMove(x, y);
+    render(ctx);
 });
 
 canvas.addEventListener('mousedown', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    patch.handleMouseDown(x, y);
+    patchManager.handleMouseDown(x, y);
 });
 
 canvas.addEventListener('mouseup', () => {
-    patch.handleMouseUp();
+    patchManager.handleMouseUp();
 });
-// Render in animation loop or on demand
+
 function render(ctx: CanvasRenderingContext2D) {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    patch.render(ctx);
+    patchManager.render(ctx);
 }
 
 render(ctx);

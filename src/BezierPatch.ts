@@ -213,6 +213,17 @@ export default class BezierPatch {
         };
     }
 
+    updateKnotPosition(row: number, col: number, x: number, y: number): void {
+        this.controlPoints[row][col].x = x;
+        this.controlPoints[row][col].y = y;
+        this.calculateInteriorPoints();
+    }
+
+    updateKnotColor(row: number, col: number, color: Color): void {
+        this.controlPoints[row][col].color = color;
+        this.initializeEdgeColors(); // Recalculate all edge colors when a corner changes
+    }
+
     moveControlPoint(row: number, col: number, x: number, y: number): void {
         if (row !== 0 && row !== 3 && col !== 0 && col !== 3) {
             return;
@@ -230,13 +241,13 @@ export default class BezierPatch {
         if ((row === 0 || row === 3) && (col === 0 || col === 3)) {
             // For horizontal adjacent point
             const adjacentCol = col === 0 ? 1 : 2;
-            this.controlPoints[row][adjacentCol].x += deltaX ;
-            this.controlPoints[row][adjacentCol].y += deltaY ;
+            this.controlPoints[row][adjacentCol].x += deltaX * 0.5;
+            this.controlPoints[row][adjacentCol].y += deltaY * 0.5;
 
             // For vertical adjacent point
             const adjacentRow = row === 0 ? 1 : 2;
-            this.controlPoints[adjacentRow][col].x += deltaX;
-            this.controlPoints[adjacentRow][col].y += deltaY;
+            this.controlPoints[adjacentRow][col].x += deltaX * 0.5;
+            this.controlPoints[adjacentRow][col].y += deltaY * 0.5;
         }
 
         this.calculateInteriorPoints();
