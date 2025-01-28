@@ -6,6 +6,7 @@ export default class BezierPatch {
     private selectedPoint: { row: number, col: number } | null = null;
     private hoveredPoint: { row: number, col: number } | null = null;
     private isDragging: boolean = false;
+    private hoveredEdge: { row: number, col: number, t: number, type: string } | null = null;
 
     constructor(x: number, y: number, width: number, height: number) {
         this.controlPoints = [];
@@ -253,6 +254,14 @@ export default class BezierPatch {
         this.calculateInteriorPoints();
     }
 
+    moveAdjacentControlPoint(row: number, col: number, deltaX: number, deltaY: number): void {
+        if (this.controlPoints[row] && this.controlPoints[row][col]) {
+            this.controlPoints[row][col].x += deltaX;
+            this.controlPoints[row][col].y += deltaY;
+            this.calculateInteriorPoints();
+        }
+    }
+
     getControlPoint(row: number, col: number): Point {
         return this.controlPoints[row][col];
     }
@@ -267,6 +276,31 @@ export default class BezierPatch {
             return;
         }
 
+        // Check for edge curve hovering
+        this.hoveredEdge = null;
+        
+        // Define edges to check with proper row/col values
+        const edges = [
+            { type: 'horizontal', r1: 0, c1: 0, r2: 0, c2: 3 }, // Top
+            { type: 'horizontal', r1: 3, c1: 0, r2: 3, c2: 3 }, // Bottom
+            { type: 'vertical', r1: 0, c1: 0, r2: 3, c2: 0 },   // Left
+            { type: 'vertical', r1: 0, c1: 3, r2: 3, c2: 3 }    // Right
+        ];
+
+        for (const edge of edges) {
+            const result = this.distanceToEdgeCurve(x, y, edge.r1, edge.c1, edge.r2, edge.c2);
+            if (result) {
+                this.hoveredEdge = { 
+                    row: edge.r1, 
+                    col: edge.c1,
+                    t: result.t,
+                    type: edge.type
+                };
+                return;
+            }
+        }
+
+        // Check control points if no edge is hovered
         const nearest = this.findNearestControlPoint(x, y);
         if (nearest && nearest.distance < 10) {
             this.hoveredPoint = {
@@ -325,7 +359,50 @@ export default class BezierPatch {
         return nearest;
     }
 
-    render(ctx: CanvasRenderingContext2D, resolution: number = 20): void {
+    private distanceToEdgeCurve(x: number, y: number, row1: number, col1: number, row2: number, col2: number): { distance: number, t: number } | null {
+        const steps = 50; // Increased for better precision
+        let minDistance = Infinity;
+        let bestT = 0;
+
+        // Get control points for the edge curve
+        const p0 = this.controlPoints[row1][col1];
+        const p3 = this.controlPoints[row2][col2];
+        
+        // Get the two inner control points based on edge type
+        let p1, p2;
+        if (row1 === row2) { // Horizontal edge
+            p1 = this.controlPoints[row1][col1 + 1];
+            p2 = this.controlPoints[row1][col1 + 2];
+        } else { // Vertical edge
+            p1 = this.controlPoints[row1 + 1][col1];
+            p2 = this.controlPoints[row1 + 2][col1];
+        }
+
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            // Cubic Bézier interpolation
+            const mt = 1 - t;
+            const mt2 = mt * mt;
+            const mt3 = mt2 * mt;
+            const t2 = t * t;
+            const t3 = t2 * t;
+
+            // Bézier curve formula
+            const px = mt3 * p0.x + 3 * mt2 * t * p1.x + 3 * mt * t2 * p2.x + t3 * p3.x;
+            const py = mt3 * p0.y + 3 * mt2 * t * p1.y + 3 * mt * t2 * p2.y + t3 * p3.y;
+            
+            const distance = Math.sqrt(Math.pow(px - x, 2) + Math.pow(py - y, 2));
+            
+            if (distance < minDistance) {
+                minDistance = distance;
+                bestT = t;
+            }
+        }
+
+        return minDistance < 10 ? { distance: minDistance, t: bestT } : null;
+    }
+
+    render(ctx: CanvasRenderingContext2D, resolution: number = 60): void {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
 
@@ -401,6 +478,43 @@ export default class BezierPatch {
                     ctx.fill();
                 }
             }
+        }
+
+        // Draw highlighted edge if hovering
+        if (this.hoveredEdge) {
+            const p0 = this.controlPoints[this.hoveredEdge.row][this.hoveredEdge.col];
+            let p1, p2, p3;
+
+            if (this.hoveredEdge.type === 'horizontal') {
+                p1 = this.controlPoints[this.hoveredEdge.row][this.hoveredEdge.col + 1];
+                p2 = this.controlPoints[this.hoveredEdge.row][this.hoveredEdge.col + 2];
+                p3 = this.controlPoints[this.hoveredEdge.row][this.hoveredEdge.col + 3];
+            } else {
+                p1 = this.controlPoints[this.hoveredEdge.row + 1][this.hoveredEdge.col];
+                p2 = this.controlPoints[this.hoveredEdge.row + 2][this.hoveredEdge.col];
+                p3 = this.controlPoints[this.hoveredEdge.row + 3][this.hoveredEdge.col];
+            }
+
+            const t = this.hoveredEdge.t;
+            const mt = 1 - t;
+            const mt2 = mt * mt;
+            const mt3 = mt2 * mt;
+            const t2 = t * t;
+            const t3 = t2 * t;
+
+            const x = mt3 * p0.x + 3 * mt2 * t * p1.x + 3 * mt * t2 * p2.x + t3 * p3.x;
+            const y = mt3 * p0.y + 3 * mt2 * t * p1.y + 3 * mt * t2 * p2.y + t3 * p3.y;
+
+            // Draw highlight point
+            ctx.beginPath();
+            ctx.arc(x, y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = this.evaluateColor(
+                this.hoveredEdge.type === 'horizontal' ? t : 0,
+                this.hoveredEdge.type === 'vertical' ? t : 0
+            );
+            ctx.strokeStyle = 'white';
+            ctx.fill();
+            ctx.stroke();
         }
     }
 }

@@ -17,11 +17,37 @@ export default class KnotPoint {
     }
 
     setPosition(x: number, y: number) {
+        // Calculate movement delta
+        const deltaX = x - this.x;
+        const deltaY = y - this.y;
+
+
+        // Update knot position
         this.x = x;
         this.y = y;
-        // Update all connected patches
+
+        // Update all connected patches' control points
         this.connectedPatches.forEach(conn => {
-            conn.patch.updateKnotPosition(conn.row, conn.col, x, y);
+            const patch = conn.patch;
+            const row = conn.row;
+            const col = conn.col;
+
+            // Update the knot point position
+            patch.updateKnotPosition(row, col, x, y);
+
+            // Move adjacent control points based on which corner this is
+            if (row === 0) { // Top edge
+                patch.moveAdjacentControlPoint(row, col === 0 ? 1 : 2, deltaX , deltaY );
+            }
+            if (row === 3) { // Bottom edge
+                patch.moveAdjacentControlPoint(row, col === 0 ? 1 : 2, deltaX , deltaY );
+            }
+            if (col === 0) { // Left edge
+                patch.moveAdjacentControlPoint(row === 0 ? 1 : 2, col, deltaX , deltaY );
+            }
+            if (col === 3) { // Right edge
+                patch.moveAdjacentControlPoint(row === 0 ? 1 : 2, col, deltaX , deltaY );
+            }
         });
     }
 
